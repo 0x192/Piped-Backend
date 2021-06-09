@@ -1,6 +1,7 @@
 package me.kavin.piped;
 
 import static io.activej.config.converter.ConfigConverters.ofInetSocketAddress;
+import static io.activej.http.HttpHeaders.AUTHORIZATION;
 import static io.activej.http.HttpHeaders.CACHE_CONTROL;
 import static io.activej.http.HttpHeaders.CONTENT_TYPE;
 
@@ -32,6 +33,8 @@ import me.kavin.piped.utils.CustomServletDecorator;
 import me.kavin.piped.utils.ResponseHelper;
 import me.kavin.piped.utils.SponsorBlockUtils;
 import me.kavin.piped.utils.resp.ErrorResponse;
+import me.kavin.piped.utils.resp.LoginRequest;
+import me.kavin.piped.utils.resp.SubscriptionUpdateRequest;
 
 public class ServerLauncher extends MultithreadedHttpServerLauncher {
 
@@ -148,6 +151,41 @@ public class ServerLauncher extends MultithreadedHttpServerLauncher {
             try {
                 return getJsonResponse(ResponseHelper.commentsPageResponse(request.getPathParameter("videoId"),
                         request.getQueryParameter("url")), "public, s-maxage=3600");
+            } catch (Exception e) {
+                return getErrorResponse(e);
+            }
+        })).map("/register", AsyncServlet.ofBlocking(executor, request -> {
+            try {
+                LoginRequest body = Constants.mapper.readValue(request.loadBody().getResult().asArray(),
+                        LoginRequest.class);
+                return getJsonResponse(ResponseHelper.registerResponse(body.username, body.password), "private");
+            } catch (Exception e) {
+                return getErrorResponse(e);
+            }
+        })).map("/login", AsyncServlet.ofBlocking(executor, request -> {
+            try {
+                LoginRequest body = Constants.mapper.readValue(request.loadBody().getResult().asArray(),
+                        LoginRequest.class);
+                return getJsonResponse(ResponseHelper.loginResponse(body.username, body.password), "private");
+            } catch (Exception e) {
+                return getErrorResponse(e);
+            }
+        })).map("/subscribe", AsyncServlet.ofBlocking(executor, request -> {
+            try {
+                SubscriptionUpdateRequest body = Constants.mapper.readValue(request.loadBody().getResult().asArray(),
+                        SubscriptionUpdateRequest.class);
+                return getJsonResponse(
+                        ResponseHelper.subscribeResponse(request.getHeader(AUTHORIZATION), body.channelId), "private");
+            } catch (Exception e) {
+                return getErrorResponse(e);
+            }
+        })).map("/unsubscribe", AsyncServlet.ofBlocking(executor, request -> {
+            try {
+                SubscriptionUpdateRequest body = Constants.mapper.readValue(request.loadBody().getResult().asArray(),
+                        SubscriptionUpdateRequest.class);
+                return getJsonResponse(
+                        ResponseHelper.unsubscribeResponse(request.getHeader(AUTHORIZATION), body.channelId),
+                        "private");
             } catch (Exception e) {
                 return getErrorResponse(e);
             }
